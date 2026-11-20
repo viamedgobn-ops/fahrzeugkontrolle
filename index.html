@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fahrzeugkontrolle">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#58b133">
+<title>Fahrzeugkontrolle</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="start">
+<header class="bar">
+  <div class="bar-in">
+    <button id="backBtn" class="rund hidden" aria-label="Zurück">‹</button>
+    <img class="logo" src="logo.png" alt="ViamedGO">
+    <div class="ttl"><h1 id="title">Fahrzeugkontrolle</h1><div id="sub"></div></div>
+    <button id="settingsBtn" class="rund" aria-label="Einstellungen">⚙︎</button>
+  </div>
+  <svg class="welle" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 0h1200v18c-180 34-420 42-640 24S160 10 0 40z" fill="#58b133"/>
+    <path d="M0 40c160-30 340-16 560 2s460 10 640-24v14c-200 40-430 46-650 26S160 32 0 56z" fill="#a2cb85" opacity=".75"/>
+  </svg>
+</header>
+<main id="app"></main>
+<script src="pdf.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
