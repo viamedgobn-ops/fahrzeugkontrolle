@@ -165,7 +165,7 @@
     }
     zeichne();
     const namen = h('ul', { class: 'list' });
-    const neuName = h('input', { type: 'text', placeholder: 'Vor- und Nachname', autocapitalize: 'words' });
+    const neuName = h('input', { type: 'text', placeholder: 'Name, mehrere mit Komma', autocapitalize: 'words' });
     function zeichneNamen() {
       namen.replaceChildren(...prueferListe().map(n => h('li', {}, h('b', {}, n),
         h('button', { class: 'btn danger', onclick: () => { if (confirm(`${n} aus der Auswahl nehmen? Alte Kontrollen behalten den Namen.`)) { store.set('prueferListe', prueferListe().filter(x => x !== n)); zeichneNamen(); } } }, 'Entfernen'))));
@@ -186,8 +186,9 @@
       h('div', { class: 'card' }, namen,
         h('div', { class: 'fields', style: 'margin-top:12px' }, h('label', { class: 'f' }, 'Neuer Name', neuName),
           h('button', { class: 'btn', style: 'align-self:end', onclick: () => {
-            const n = neuName.value.trim().replace(/\s+/g, ' '); if (!n) return;
-            if (!prueferListe().includes(n)) store.set('prueferListe', [...prueferListe(), n]);
+            // mehrere Namen auf einmal: mit Komma trennen
+            const liste = neuName.value.split(/[,;\n]/).map(x => x.trim().replace(/\s+/g, ' ')).filter(Boolean); if (!liste.length) return;
+            store.set('prueferListe', [...new Set([...prueferListe(), ...liste])]);
             neuName.value = ''; zeichneNamen();
           } }, 'Hinzufügen'))),
       h('h2', {}, h('span', { class: 'ico' }, '⚙️'), 'Allgemein'),

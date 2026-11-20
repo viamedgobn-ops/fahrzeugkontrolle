@@ -1,5 +1,5 @@
 // Offline-Zwischenspeicher: App läuft auch ohne Netz.
-const CACHE = 'fk-v7';
+const CACHE = 'fk-v8';
 const DATEIEN = ['./', 'index.html', 'style.css', 'app.js', 'pdf.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'logo.png'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(DATEIEN)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
