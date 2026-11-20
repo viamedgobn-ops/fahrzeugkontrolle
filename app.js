@@ -210,11 +210,18 @@
 
     const inp = (attrs) => { const el = h('input', attrs); el.addEventListener('input', () => geaendert = true); return el; };
     const datum = inp({ type: 'date', value: isoDatum(jetzt) });
-    const km = inp({ type: 'number', inputmode: 'numeric', placeholder: 'z. B. 160683' });
+    const nurZiffern = el => { el.addEventListener('input', () => { const v = el.value.replace(/\D/g, ''); if (v !== el.value) el.value = v; }); return el; };
+    const km = nurZiffern(inp({ type: 'text', inputmode: 'numeric', pattern: '[0-9]*', placeholder: 'nur Zahlen, z. B. 160683' }));
     const letzte = (verlauf()[kz] || []).slice(-1)[0] || {};
-    const tuev = inp({ type: 'text', placeholder: 'MM/JJ', value: letzte.tuev || '' });
+    // TÜV: nur Ziffern tippen (z. B. 1227), der Schrägstrich kommt automatisch -> 12/27
+    const tuev = inp({ type: 'text', inputmode: 'numeric', pattern: '[0-9]*', maxlength: 5, placeholder: 'z. B. 1227 tippen', value: letzte.tuev || '' });
+    tuev.addEventListener('input', e => {
+      let d = tuev.value.replace(/\D/g, '').slice(0, 4);
+      if (e.inputType === 'deleteContentBackward' && d.length === 2) { tuev.value = d; return; }
+      tuev.value = d.length >= 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+    });
     const gespeichert = services()[kz];
-    const service = inp({ type: 'number', inputmode: 'numeric', placeholder: 'km, z. B. 215000', value: gespeichert || '' });
+    const service = nurZiffern(inp({ type: 'text', inputmode: 'numeric', pattern: '[0-9]*', placeholder: 'nur Zahlen, z. B. 215000', value: gespeichert || '' }));
     const serviceHinweis = h('span', { style: 'font-size:13px' });
     const serviceAendern = h('button', { class: 'btn sec', style: 'padding:8px 12px;margin-top:4px', onclick: () => { service.disabled = false; service.value = ''; service.focus(); serviceAendern.classList.add('hidden'); pruefeService(); } }, 'Neu eintragen');
     if (gespeichert) service.disabled = true; else serviceAendern.classList.add('hidden');
@@ -228,9 +235,20 @@
     km.addEventListener('input', pruefeService); service.addEventListener('input', pruefeService);
     const reifenArt = h('select', {}, ['', 'Sommer', 'Winter', 'Ganzjahr'].map(x => h('option', { value: x, selected: x === (letzte.reifenArt || '') }, x || 'bitte wählen')));
     const zuletzt = einst().pruefer;
-    const pruefer = h('select', { onchange: () => { geaendert = true; } },
-      h('option', { value: '' }, prueferListe().length ? 'Bitte Namen wählen' : 'Erst Namen in ⚙︎ Einstellungen anlegen'),
-      prueferListe().map(n => h('option', { value: n, selected: n === zuletzt }, n)));
+    const pruefer = h('select', { onchange: () => {
+      geaendert = true;
+      if (pruefer.value !== '__neu') return;
+      const n = (prompt('Name des Prüfers:') || '').trim().replace(/\s+/g, ' ');
+      if (n && !prueferListe().includes(n)) store.set('prueferListe', [...prueferListe(), n]);
+      fuellePruefer(n || '');
+    } });
+    function fuellePruefer(wahl) {
+      pruefer.replaceChildren(h('option', { value: '' }, 'Bitte Namen wählen'),
+        ...prueferListe().map(n => h('option', { value: n, selected: n === wahl }, n)),
+        h('option', { value: '__neu' }, '＋ Neuen Namen anlegen …'));
+      pruefer.value = prueferListe().includes(wahl) ? wahl : '';
+    }
+    fuellePruefer(zuletzt);
     // Fahrer des Fahrzeugs
     const fahrerNamen = [...new Set([...prueferListe(), ...store.get('fahrerListe', [])])];
     const fahrerListeEl = h('datalist', { id: 'fahrerNamen' }, fahrerNamen.map(n => h('option', { value: n })));
@@ -255,16 +273,17 @@
     const fsGalerie = h('input', { type: 'file', accept: 'image/*', class: 'hidden', onchange: e => { fsDazu(e.target.files[0]); e.target.value = ''; } });
     const fsKnopf = h('span', { class: 'btn', onclick: () => fsKamera.click() }, '📷 Führerschein fotografieren');
     const fsFotoBox = h('div', { class: 'hidden', style: 'margin-top:14px' },
-      h('div', { class: 'photobtns' }, h('label', {}, fsKamera, fsKnopf), h('label', {}, fsGalerie, h('span', { class: 'btn sec', onclick: () => fsGalerie.click() }, 'Aus Fotos wählen'))),
+      h('div', { class: 'photobtns' }, h('label', {}, fsKamera, fsKnopf), h('label', {}, fsGalerie, h('span', { class: 'btn sec', onclick: () => fsGalerie.click() }, 'Mehrere aus Fotos wählen'))),
       fsBild);
     const sonstiges = h('textarea', { placeholder: 'Schäden, Auffälligkeiten, was fehlt …', oninput: () => geaendert = true });
 
     const reifen = {};
     const reifenBox = h('div', { class: 'tyres' }, RAEDER.map(([k, name]) => {
-      reifen[k] = { mm: inp({ type: 'number', step: '0.1', inputmode: 'decimal', placeholder: 'mm' }), bar: inp({ type: 'number', step: '0.1', inputmode: 'decimal', placeholder: 'bar' }) };
+      reifen[k] = { mm: inp({ type: 'text', inputmode: 'decimal', placeholder: 'mm' }), bar: inp({ type: 'text', inputmode: 'decimal', placeholder: 'bar' }) };
       return h('div', { class: 'tyre' }, h('b', {}, name), h('div', { class: 'row' }, reifen[k].mm, reifen[k].bar));
     }));
 
+    const zahl = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; };
     const itemEls = {};
     function punktEl(name) {
       const note = h('input', { type: 'text', class: 'note hidden', placeholder: 'Was ist los?', oninput: e => { st.notizen[name] = e.target.value; geaendert = true; } });
@@ -311,7 +330,19 @@
       }
       zeichneFotos();
     }
-    const kamera = h('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'hidden', onchange: e => { fotosDazu([...e.target.files]); e.target.value = ''; } });
+    // Serie: nach jedem Kamera-Foto direkt "Nächstes Foto" anbieten
+    const serie = h('div', { class: 'serie hidden' },
+      h('div', { class: 'serie-box' }, h('b', { class: 'serie-txt' }, ''),
+        h('button', { class: 'btn big', onclick: () => { serie.classList.add('hidden'); kamera.click(); } }, '📷 Nächstes Foto'),
+        h('button', { class: 'btn sec big', onclick: () => serie.classList.add('hidden') }, 'Fertig')));
+    document.querySelectorAll('.serie').forEach(x => x.remove());
+    document.body.appendChild(serie);
+    const kamera = h('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'hidden', onchange: async e => {
+      const f = [...e.target.files]; e.target.value = ''; if (!f.length) return;
+      await fotosDazu(f);
+      serie.querySelector('.serie-txt').textContent = `${st.fotos.length} ${st.fotos.length === 1 ? 'Foto' : 'Fotos'} hinzugefügt`;
+      serie.classList.remove('hidden');
+    } });
     const galerie = h('input', { type: 'file', accept: 'image/*', multiple: true, class: 'hidden', onchange: e => { fotosDazu([...e.target.files]); e.target.value = ''; } });
 
     // Unterschrift
@@ -326,7 +357,7 @@
       h('div', { class: 'card fields' },
         h('label', { class: 'f' }, 'Datum', datum),
         h('label', { class: 'f' }, 'KM-Stand *', km),
-        h('label', { class: 'f' }, 'TÜV / HU', tuev),
+        h('label', { class: 'f' }, 'TÜV / HU (Monat/Jahr)', tuev),
         h('label', { class: 'f' }, 'Nächster Service bei (km)', service, serviceHinweis, serviceAendern),
         h('label', { class: 'f' }, 'Reifen', reifenArt)),
       h('h2', {}, h('span', { class: 'ico' }, '🧑‍✈️'), 'Fahrer des Fahrzeugs'),
@@ -344,8 +375,8 @@
       h('h2', {}, h('span', { class: 'ico' }, '📝'), 'Sonstiges'), sonstiges,
       h('h2', {}, h('span', { class: 'ico' }, '📸'), 'Fotos'),
       h('div', { class: 'photobtns' },
-        h('label', {}, kamera, h('span', { class: 'btn', onclick: () => kamera.click() }, '📷 Foto aufnehmen')),
-        h('label', {}, galerie, h('span', { class: 'btn sec', onclick: () => galerie.click() }, 'Aus Fotos wählen'))),
+        h('label', {}, kamera, h('span', { class: 'btn', onclick: () => kamera.click() }, '📷 Fotos aufnehmen')),
+        h('label', {}, galerie, h('span', { class: 'btn sec', onclick: () => galerie.click() }, 'Mehrere aus Fotos wählen'))),
       fotoGrid,
       h('h2', {}, h('span', { class: 'ico' }, '✍️'), 'Bestätigung'),
       h('div', { class: 'card' },
@@ -365,6 +396,7 @@
       const fehler = [];
       if (!datum.value) fehler.push('Datum fehlt');
       if (!km.value) fehler.push('KM-Stand fehlt');
+      if (tuev.value && !/^(0[1-9]|1[0-2])\/\d{2}$/.test(tuev.value)) fehler.push('TÜV / HU bitte als Monat und Jahr, z. B. 1227 tippen');
       if (!fahrer.value.trim()) fehler.push('Fahrer fehlt');
       if (!st.fuehrerschein) fehler.push('Führerschein dabei ja/nein fehlt');
       if (!pruefer.value) fehler.push('Name (wer kontrolliert hat) fehlt');
@@ -382,7 +414,7 @@
         app: 'Fahrzeugkontrolle ViamedGO Bonn', version: 1,
         kennzeichen: kz, datum: datum.value, uhrzeit: `${pad(jetzt.getHours())}:${pad(jetzt.getMinutes())}`, kw: kw(d),
         kmStand: +km.value, tuevHu: tuev.value.trim(), naechsterServiceKm: service.value ? +service.value : null, serviceFaellig: !!(service.value && +km.value >= +service.value), reifenArt: reifenArt.value,
-        reifen: Object.fromEntries(RAEDER.map(([k]) => [k, { profilMm: reifen[k].mm.value ? +reifen[k].mm.value : null, druckBar: reifen[k].bar.value ? +reifen[k].bar.value : null }])),
+        reifen: Object.fromEntries(RAEDER.map(([k]) => [k, { profilMm: zahl(reifen[k].mm.value), druckBar: zahl(reifen[k].bar.value) }])),
         punkte: PUNKTE.map(p => ({ punkt: p, status: st.punkte[p] === 'ok' ? 'i.O.' : st.punkte[p] === 'mangel' ? 'Mangel' : st.punkte[p] === 'nv' ? 'entfällt' : 'offen', notiz: (st.notizen[p] || '').trim() })),
         fahrer: fahrer.value.trim().replace(/\s+/g, ' '), fuehrerscheinDabei: st.fuehrerschein === 'ja', fuehrerscheinFoto: !!st.fsFoto,
         sonstiges: sonstiges.value.trim(), pruefer: pruefer.value.trim(), bestaetigungFuehrerschein: true,
